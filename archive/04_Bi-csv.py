@@ -22,7 +22,7 @@ IMAGE_CENTER_COORDS = (250, 65)
 # 例: f'/Volumes/SSDの名前/データフォルダ/{energy}'
 energy = 15500
 BASE_DIR = f'/Volumes/Extreme SSD/Sm-BiFeO3_RT/{energy}'
-OUTPUT_CSV = f'output/{energy}eV_U_intensity_map.csv'
+OUTPUT_CSV = f'output/Bi_{energy}eV_intensity_map.csv'
 
 
 # 角度設定
@@ -72,11 +72,11 @@ def fixed_model(x, amp, offset):
 # =============================================================================
 def main():
     # 結果格納用配列 (行: Theta 0-75, 列: Phi 0-1439)
-    result_map = np.zeros((THETA_END - THETA_START + 1, PHI_STEPS))
+    result_map_bi = np.zeros((THETA_END - THETA_START + 1, PHI_STEPS))
 
     print(f"Processing {energy}eV Data (U-Only)...")
     print(f"Fixed Parameters: Center={FIXED_CENTER}, Width={FIXED_WIDTH}")
-    print(f"Output File: {OUTPUT_CSV}")
+    print(f"Output File: \n  Bi -> {OUTPUT_CSV}")
 
     # Thetaループ (Th00 -> Th75)
     for t_idx, theta in enumerate(range(THETA_START, THETA_END + 1)):
@@ -107,33 +107,32 @@ def main():
 
             try:
                 # 3. フィッティング実行
-                p0 = [300.0, 0.0] # 初期値: [Amp, Offset]
+                max_val = np.max(y_fit)
+                p0 = [max_val, 0.0] # 初期値: [Amp, Offset]
                 
                 # boundsを設定してAmpがマイナスになるのを防ぐ (0, -inf) ~ (inf, inf)
                 popt, _ = curve_fit(fixed_model, x_fit, y_fit, p0=p0, bounds=([0, -np.inf], [np.inf, np.inf]))
                 
                 # 4. 面積計算 (Area = Amp * Width * sqrt(2*pi))
-                area = popt[0] * FIXED_WIDTH * np.sqrt(2 * np.pi)
+                area_bi = popt[0] * FIXED_WIDTH * np.sqrt(2 * np.pi)
                 
                 # 結果配列に格納
-                result_map[t_idx, phi] = area
+                result_map_bi[t_idx, phi] = area_bi
 
             except Exception:
                 # フィッティング失敗時は 0 を入れる
-                result_map[t_idx, phi] = 0.0
+                result_map_bi[t_idx, phi] = 0.0
 
     # =============================================================================
     # 4. CSV出力
     # =============================================================================
-    # 行をTheta, 列をPhiとして保存
-    df = pd.DataFrame(result_map)
-    
-    # 解析ソフトで読み込みやすいよう、ヘッダーやインデックスなしで保存
-    df.to_csv(OUTPUT_CSV, header=False, index=False)
+    # Bi用のCSV出力
+    df_bi = pd.DataFrame(result_map_bi)
+    df_bi.to_csv(OUTPUT_CSV, header=False, index=False)
     
     print(f"\n完了しました。")
     print(f"保存先: {OUTPUT_CSV}")
-    print(f"データサイズ: {df.shape} (Row:Theta0-75, Col:Phi0-1439)")
+    print(f"データサイズ: {df_bi.shape} (Row:Theta0-75, Col:Phi0-1439)")
 
 if __name__ == "__main__":
     main()

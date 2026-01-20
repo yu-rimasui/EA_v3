@@ -13,23 +13,18 @@ OFFSET_BYTES = 1024
 
 # 解析対象ファイルパス
 number = '000000'
-FILE_PATH_L = f'/Volumes/Extreme SSD/Sm-BiFeO3_RT/13500/Th00/L_phi_{number}.img'
-FILE_PATH_U = f'/Volumes/Extreme SSD/Sm-BiFeO3_RT/13500/Th00/U_phi_{number}.img'
+FILE_PATH = f'/Volumes/Extreme SSD/Sm-BiFeO3_RT/13500/Th00/L_phi_{number}.img' 
 
 # 画像の中心座標
 IMAGE_CENTER_COORDS = (250, 65)
 
-# マスターパラメータ
-# [Sm Peak]
-FIXED_CEN_SM = 27.1227
-FIXED_WID_SM = 15.4547
-# [Fe Peak]
-FIXED_CEN_FE = 125.9003
-FIXED_WID_FE = 11.0976
+# ★固定するマスターパラメータ（02_Bi-param.pyより決定）
+FIXED_CENTER = 30.85
+FIXED_WIDTH  = 13.42
 
 # フィッティング範囲
 FIT_R_MIN = 0
-FIT_R_MAX = 200
+FIT_R_MAX = 150
 
 # =============================================================================
 # 2. 関数定義
@@ -65,31 +60,23 @@ def calculate_sum_profile(image, center):
 # =============================================================================
 # 3. フィッティング用モデル関数
 # =============================================================================
-def fixed_model(x, a1, a2, offset):
+def fixed_model(x, amp, offset):
     """
-    中心と幅を固定した2つのガウス関数の和 + オフセット
-    変数は a1(Sm振幅), a2(Fe振幅), offset のみ
+    CenterとWidthを固定し、高さ(amp)とオフセットだけを調整するモデル
     """
-    # Sm由来 (Peak 1)
-    g1 = a1 * np.exp(-(x - FIXED_CEN_SM)**2 / (2 * FIXED_WID_SM**2))
-    # Fe由来 (Peak 2)
-    g2 = a2 * np.exp(-(x - FIXED_CEN_FE)**2 / (2 * FIXED_WID_FE**2))
-    return g1 + g2 + offset
+    return amp * np.exp(-(x - FIXED_CENTER)**2 / (2 * FIXED_WIDTH**2)) + offset
 
 # =============================================================================
 # 4. メイン処理
 # =============================================================================
-def analyze_and_plot(file_path_l, file_path_u, center=IMAGE_CENTER_COORDS):
-    image_l = load_raw_image(file_path_l)
-    image_u = load_raw_image(file_path_u)
-    if image_l is None or image_u is None:
-        return
+def analyze_and_plot(file_path, center=IMAGE_CENTER_COORDS):
+    image = load_raw_image(file_path)
+    if image is None: return
 
-    print(f"Target File: {file_path_l}, {file_path_u}")
-    diff_image = image_l - image_u
+    print(f"Target File: {file_path}")
     
     # 1. プロファイル計算
-    radii, profile = calculate_sum_profile(diff_image, center)
+    radii, profile = calculate_sum_profile(image, center)
 
     # 2. フィッティング用データの抽出
     mask = (radii >= FIT_R_MIN) & (radii <= FIT_R_MAX)
@@ -98,11 +85,7 @@ def analyze_and_plot(file_path_l, file_path_u, center=IMAGE_CENTER_COORDS):
 
     # 3. 初期パラメータ
     max_val = np.max(y_fit)
-    p0 = [
-        max_val,         # Peak 1 (Sm)
-        max_val * 0.5,   # Peak 2 (Fe)
-        0.0              # Offset
-    ]
+    p0 = [max_val, 0.0] # 初期値: [Amp, Offset]
 
     try:
         # 4. フィッティング実行
@@ -117,16 +100,14 @@ def analyze_and_plot(file_path_l, file_path_u, center=IMAGE_CENTER_COORDS):
         print("-" * 40)
         print(f"Fitting Successful! (R^2 = {r_squared:.4f})")
 
-        print(f"Sm Peak : Amp={popt[0]:.2f}")
-        print(f"Fe Peak : Amp={popt[1]:.2f}")
-        print(f"Offset  : {popt[2]:.2f}")
-
+        print(f"Bi Peak : Amp={popt[0]:.2f}")
+        print(f"          Center={FIXED_CENTER:.2f} (Fixed)")
+        print(f"          Width ={FIXED_WIDTH:.2f} (Fixed)")
+        print(f"Offset  : {popt[1]:.2f}")
+        
         # 面積計算
-        area_sm = popt[0] * FIXED_WID_SM * np.sqrt(2 * np.pi)
-        print(f"Calclated Sm Area: {area_sm:.2f}")
-
-        area_fe = popt[1] * FIXED_WID_FE * np.sqrt(2 * np.pi)
-        print(f"Calclated Fe Area: {area_fe:.2f}")
+        area_bi = popt[0] * FIXED_WIDTH * np.sqrt(2 * np.pi)
+        print(f"Calclated Bi Area: {area_bi:.2f}")
         print("-" * 40)
 
         # 5. プロット
@@ -135,21 +116,14 @@ def analyze_and_plot(file_path_l, file_path_u, center=IMAGE_CENTER_COORDS):
 
         plt.figure(figsize=(8, 5))
         
-        # 実データ
-        plt.plot(radii, profile, 'k-', alpha=0.5, label='Summed Data (1440 images)')
+        # 生データ
+        plt.plot(radii, profile, 'k-', alpha=0.5, label='Raw Data')
+        
+        # フィッティング結果
+        plt.plot(x_plot, y_fit_curve, 'r--', linewidth=1.5, label=f'Bi Component (area={area_bi:.2f})')
+        plt.axhline(y=popt[1], color='gray', linestyle=':', label='Baseline')
 
-        x_plot = np.linspace(FIT_R_MIN, FIT_R_MAX, 500)
-        y_total = fixed_model(x_plot, *popt)
-        # plt.plot(x_plot, y_total, 'g-', linewidth=2.0, label='Total Fit', alpha=0.8)
-
-        # popt: [SmAmp, FeAmp, Offset]
-        y_sm = popt[0] * np.exp(-(x_plot - FIXED_CEN_SM)**2 / (2 * FIXED_WID_SM**2)) + popt[2]
-        plt.plot(x_plot, y_sm, 'r--', linewidth=1.5, label=f'Sm Component (area={area_sm:.2f})')
-        y_fe = popt[1] * np.exp(-(x_plot - FIXED_CEN_FE)**2 / (2 * FIXED_WID_FE**2)) + popt[2]
-        plt.plot(x_plot, y_fe, 'b--', linewidth=1.5, label=f'Fe Component (area={area_fe:.2f})')
-        plt.axhline(y=popt[2], color='gray', linestyle=':', label='Baseline')
-
-        plt.title(f"Sm, Fe Peak Fitting (Fixed Param) $R^2$={r_squared:.3f}")
+        plt.title(f"Bi Peak Fitting (Fixed Param) $R^2$={r_squared:.3f}")
         plt.xlabel("Radius r [px]")
         plt.ylabel("Intensity Sum [arb. unit]")
         plt.legend()
@@ -163,4 +137,4 @@ def analyze_and_plot(file_path_l, file_path_u, center=IMAGE_CENTER_COORDS):
         traceback.print_exc()
 
 if __name__ == "__main__":
-    analyze_and_plot(FILE_PATH_L, FILE_PATH_U)
+    analyze_and_plot(FILE_PATH)

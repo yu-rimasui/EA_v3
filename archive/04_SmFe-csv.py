@@ -114,25 +114,21 @@ def main():
             # 画像読み込み
             img_l = load_raw_image(l_file)
             img_u = load_raw_image(u_file)
-            
-            # 片方でも欠けていたらスキップ（または0埋め）
             if img_l is None or img_u is None:
-            
                 continue
 
-            # 1. 差分画像の計算 (L - U)
             diff_img = img_l - img_u
 
-            # 2. プロファイル計算
+            # 1. プロファイル計算
             radii, profile = calculate_sum_profile(diff_img, center=IMAGE_CENTER_COORDS)
 
-            # 3. フィッティング用データの抽出
+            # 2. フィッティング用データの抽出
             mask = (radii >= FIT_R_MIN) & (radii <= FIT_R_MAX)
             x_fit = radii[mask]
             y_fit = profile[mask]
 
             try:
-                # 4. フィッティング実行
+                # 3. フィッティング実行
                 # パラメータ: [Sm振幅(a1), Fe振幅(a2), オフセット]
                 max_val = np.max(y_fit)
                 p0 = [max_val, max_val * 0.5, 0.0] 
@@ -141,7 +137,7 @@ def main():
                 popt, _ = curve_fit(fixed_model, x_fit, y_fit, p0=p0, 
                                     bounds=([0, 0, -np.inf], [np.inf, np.inf, np.inf]))
                 
-                # 5. 面積計算 (Area = Amp * Width * sqrt(2*pi))
+                # 4. 面積計算 (Area = Amp * Width * sqrt(2*pi))
                 area_sm = popt[0] * FIXED_WID_SM * np.sqrt(2 * np.pi)
                 area_fe = popt[1] * FIXED_WID_FE * np.sqrt(2 * np.pi)
                 
