@@ -5,10 +5,7 @@
 node_modules
 
 # 仮ファイル
-06_bragg-distribution1.py
-06_bragg-distribution2.py
-06_bragg-distribution3.py
-06.py
+07_step1.py
 
 test.py
 test2.py
