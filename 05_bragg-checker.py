@@ -30,9 +30,9 @@ BASE_DIR = f'/Volumes/Extreme SSD/Sm-BiFeO3_RT/{energy}'
 OUTPUT_DIR = 'output'
 
 # 角度設定
-THETA_START = 70
+THETA_START = 73
 THETA_END   = 75
-PHI_STEPS   = 1440 
+PHI_STEPS   = 1440
 
 # ログファイル名
 if not os.path.exists(OUTPUT_DIR):
@@ -129,7 +129,7 @@ def main():
                 tqdm.write(f"\n[DETECTED] {log_entry}")
 
                 # --- 画像表示 (一時停止) ---
-                # plt.ioff() # インタラクティブモードOFF
+                plt.ioff() # インタラクティブモードOFF
                 
                 fig, ax = plt.subplots(1, 2, figsize=(12, 5))
                 
@@ -154,9 +154,9 @@ def main():
                 ax[1].grid(True)
 
                 plt.tight_layout()
-                # plt.show() # ウィンドウを閉じるまで待機
+                plt.show() # ウィンドウを閉じるまで待機
                 
-                # plt.ion()  # 再開
+                plt.ion()  # 再開
 
     # =============================================================================
     # 4. ログ保存
