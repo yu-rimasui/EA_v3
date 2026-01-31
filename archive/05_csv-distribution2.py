@@ -8,7 +8,8 @@ from mpl_toolkits.mplot3d import Axes3D
 
 # 設定
 VAL = "Bi_17000"
-file_path = f"img/{VAL}eV_intensity_map.csv" 
+# file_path = f"img/{VAL}eV_intensity_map.csv"
+file_path = f"img/algorithm2_{VAL}eV_intensity_map.csv"
 
 # データの読み込み
 df = pd.read_csv(file_path, header=None)
